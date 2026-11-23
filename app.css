@@ -223,3 +223,8 @@ details.refs summary{cursor:pointer;color:var(--petrol);font-weight:700;min-heig
 .pick-title{font-family:var(--head);font-size:24px;margin:8px 0 16px}
 .row .num.sdot-big{width:28px;height:28px;border-radius:50%;flex:none}
 .foot a{color:var(--petrol)}
+/* v0.4.1 */
+.info{color:var(--petrol);font-size:14px;margin:6px 0 0}
+.info:empty{display:none}
+.link:disabled{opacity:.55;cursor:default;text-decoration:none}
+.hero.login a{color:var(--petrol)}

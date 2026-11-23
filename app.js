@@ -12,8 +12,9 @@ const T = {
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
     chooseSubject: 'Scegli la materia', changeSubject: 'Cambia materia',
-    foot1: 'Anteprima privata · versione 0.4 · solo Volume 1',
+    foot1: 'Anteprima privata · versione 0.4.1 · solo Volume 1',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
+    foot2acc: 'Senza account i progressi restano solo in questo browser, e su iPhone e iPad Safari può cancellarli se per un po\' non apri l\'app. Accedi con la tua email per non perderli.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
     home: '← Volume 1', front: 'Fronte · domanda', back: 'Retro · risposta', recall: 'Prova a ricordare',
     show: 'Mostra risposta', flip: 'Gira la card', next: 'Avanti', how: 'Come è andata?',
@@ -33,8 +34,10 @@ const T = {
     badEmail: 'Controlla l\'indirizzo email.', badCode: 'Il codice non è valido o è scaduto.', tooMany: 'Troppi tentativi: aspetta un minuto e riprova.',
     netErr: 'Non riesco a collegarmi. Riprova tra poco.', privacy: 'Informativa privacy',
     signedAs: e => `Accesso con ${e}`, synced: 'I progressi sono salvati nel tuo account.', syncing: 'Salvataggio in corso…',
-    logout: 'Esci', delProg: 'Cancella i miei progressi dal server', delProgQ: 'Vuoi cancellare dal server tutti i tuoi progressi? Su questo telefono restano.',
-    delDone: 'Progressi cancellati dal server.', delAcc: e => `Per cancellare anche l'account scrivi a ${e}.`, del: 'Cancella'
+    logout: 'Esci', logoutQ: 'Vuoi uscire? I tuoi progressi restano salvati nel tuo account; da questo dispositivo vengono tolti.',
+    delProg: 'Cancella tutti i miei progressi', delProgQ: 'Vuoi cancellare tutti i tuoi progressi, dal server e da questo dispositivo? Non si può annullare.',
+    delDone: 'Progressi cancellati, dal server e da questo dispositivo.', delFail: 'Cancellazione non riuscita. Riprova tra poco.',
+    resent: 'Nuovo codice inviato: usa quello dell\'ultima email.', wait: n => `(${n} s)`, delAcc: e => `Per cancellare anche l'account scrivi a ${e}.`, del: 'Cancella'
   },
   en: {
     vol: 'Volume 1', rated: 'cards rated', sure: 'confident (3–4)', rev: 'to review (1–2)',
@@ -44,8 +47,9 @@ const T = {
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
     chooseSubject: 'Choose a subject', changeSubject: 'Change subject',
-    foot1: 'Private preview · version 0.4 · Volume 1 only',
+    foot1: 'Private preview · version 0.4.1 · Volume 1 only',
     foot2: 'Your progress stays on this device, in this browser.',
+    foot2acc: 'Without an account your progress stays only in this browser, and on iPhone and iPad Safari may erase it if you don\'t open the app for a while. Sign in with your email to keep it.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
     home: '← Volume 1', front: 'Front · question', back: 'Back · answer', recall: 'Try to recall',
     show: 'Show answer', flip: 'Turn the card', next: 'Next', how: 'How did it go?',
@@ -65,8 +69,10 @@ const T = {
     badEmail: 'Please check the email address.', badCode: 'The code is not valid or has expired.', tooMany: 'Too many attempts: wait a minute and try again.',
     netErr: 'Cannot connect. Please try again shortly.', privacy: 'Privacy notice',
     signedAs: e => `Signed in as ${e}`, synced: 'Your progress is saved in your account.', syncing: 'Saving…',
-    logout: 'Sign out', delProg: 'Delete my progress from the server', delProgQ: 'Delete all your progress from the server? It stays on this device.',
-    delDone: 'Progress deleted from the server.', delAcc: e => `To delete your account too, write to ${e}.`, del: 'Delete'
+    logout: 'Sign out', logoutQ: 'Sign out? Your progress stays saved in your account; it is removed from this device.',
+    delProg: 'Delete all my progress', delProgQ: 'Delete all your progress, from the server and from this device? This cannot be undone.',
+    delDone: 'Progress deleted, from the server and from this device.', delFail: 'Deletion failed. Please try again shortly.',
+    resent: 'New code sent: use the one in the latest email.', wait: n => `(${n} s)`, delAcc: e => `To delete your account too, write to ${e}.`, del: 'Delete'
   }
 };
 
@@ -150,38 +156,58 @@ async function accInit() {
     const { data } = await ACC.sb.auth.getSession();
     ACC.user = data && data.session ? data.session.user : null;
     ACC.sb.auth.onAuthStateChange((_e, session) => { ACC.user = session ? session.user : null; });
-    if (ACC.user) await sync();
-  } catch (e) { ACC.on = false; }
+  } catch (e) { ACC.on = false; ACC.sb = null; return; }
+  if (ACC.user) { try { await sync(); } catch (e) { ACC.note = t().netErr; } }
 }
 async function sync() {
   if (!ACC.user) return;
-  const { data, error } = await ACC.sb.from('progress').select('card_id,rating,n,rated_at');
+  const uid = ACC.user.id;
+  const { data, error } = await ACC.sb.from('progress').select('card_id,rating,n,rated_at').eq('user_id', uid);
   if (error) throw error;
   const server = {};
-  for (const r of data || []) server[r.card_id] = { r: r.rating, n: r.n, t: Date.parse(r.rated_at) };
+  for (const r of data || []) server[r.card_id] = { r: r.rating, n: r.n, t: Date.parse(r.rated_at), s: 1 };
+  // progress left on this device by another account is never uploaded into this one
+  if (P.uid && P.uid !== uid) P.cards = {};
   const up = [];
   for (const [id, loc] of Object.entries(P.cards)) {
-    const s = server[id];
-    if (!s || loc.t > s.t) up.push({ user_id: ACC.user.id, card_id: id, rating: loc.r, n: Math.max(loc.n || 1, s ? s.n : 1), rated_at: new Date(loc.t).toISOString() });
+    const sv = server[id];
+    if (!sv) { if (loc.s) delete P.cards[id]; else up.push(id); }  // saved before and now missing = deleted elsewhere
+    else if (loc.t > sv.t) up.push(id);
   }
-  for (const [id, s] of Object.entries(server)) if (!P.cards[id] || s.t > P.cards[id].t) P.cards[id] = s;
-  save(P);
-  if (up.length) { const r = await ACC.sb.from('progress').upsert(up); if (r.error) throw r.error; }
+  for (const [id, sv] of Object.entries(server)) {
+    const loc = P.cards[id];
+    if (!loc || sv.t > loc.t) P.cards[id] = sv; else if (sv.t === loc.t) loc.s = 1;
+  }
+  P.uid = uid; save(P);
+  if (up.length) {
+    const rows = up.map(id => { const c = P.cards[id], sv = server[id];
+      return { user_id: uid, card_id: id, rating: c.r, n: Math.max(c.n || 1, sv ? sv.n : 1), rated_at: new Date(c.t).toISOString() }; });
+    const r = await ACC.sb.from('progress').upsert(rows, { onConflict: 'user_id,card_id' });
+    if (r.error) throw r.error;
+    for (const row of rows) { const c = P.cards[row.card_id]; if (c && new Date(c.t).toISOString() === row.rated_at) { c.s = 1; c.n = row.n; } }
+    save(P);
+  }
+  ACC.note = '';
 }
 function pushOne(id) {
   if (!ACC.user) return;
-  const c = P.cards[id];
-  ACC.sb.from('progress').upsert([{ user_id: ACC.user.id, card_id: id, rating: c.r, n: c.n, rated_at: new Date(c.t).toISOString() }])
-    .then(r => { if (r.error) ACC.note = t().netErr; }).catch(() => { ACC.note = t().netErr; });
+  const c = P.cards[id], uid = ACC.user.id;
+  ACC.sb.from('progress').upsert([{ user_id: uid, card_id: id, rating: c.r, n: c.n, rated_at: new Date(c.t).toISOString() }], { onConflict: 'user_id,card_id' })
+    .then(r => {
+      if (r.error) { ACC.note = t().netErr; return; }
+      if (P.cards[id] === c) { c.s = 1; P.uid = uid; save(P); }
+      ACC.note = '';
+    }).catch(() => { ACC.note = t().netErr; });
 }
 function errText(e) {
-  const L = t(), s = e && (e.status || e.code);
-  if (s === 429 || /rate|too many/i.test(e && e.message || '')) return L.tooMany;
-  if (/fetch|network/i.test(e && e.message || '')) return L.netErr;
+  if (!e) return null;
+  const L = t(), msg = String(e.message || '');
+  if (e.status === 429 || /rate|too many/i.test(msg)) return L.tooMany;
+  if (e.status === 0 || e.name === 'AuthRetryableFetchError' || /fetch|network|load failed/i.test(msg)) return L.netErr;
   return null;
 }
-function loginView(step = 'email', email = '', msg = '') {
-  S.view = 'login';
+function loginView(step = 'email', email = '', msg = '', info = '') {
+  S.view = 'login'; S.login = { step, email };
   const L = t();
   app.innerHTML = `${bar(`<button type="button" class="back" id="home">${L.home}</button><span class="where"></span>`)}
   <main><section class="hero login">
@@ -192,6 +218,7 @@ function loginView(step = 'email', email = '', msg = '') {
         ? `<label for="em">${L.email}</label><input id="em" type="email" autocomplete="email" inputmode="email" required value="${esc(email)}">`
         : `<label for="cd">${L.code}</label><input id="cd" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]*" maxlength="10" required>`}
       <p class="err" id="lerr" role="alert">${esc(msg)}</p>
+      ${step === 'code' ? `<p class="info" id="linfo" role="status">${esc(info)}</p>` : ''}
       <button type="submit" class="btn primary wide" id="lgo">${step === 'email' ? L.sendCode : L.enter}</button>
     </form>
     ${step === 'code' ? `<div class="tools"><button type="button" class="link" id="again">${L.resend}</button><button type="button" class="link" id="other">${L.changeEmail}</button></div>` : ''}
@@ -199,10 +226,11 @@ function loginView(step = 'email', email = '', msg = '') {
   </section></main>`;
   $('home').onclick = home; wireLang();
   const fail = m => { $('lerr').textContent = m; $('lgo').disabled = false; };
-  const send = async em => {
+  const send = async (em, again) => {
     const r = await ACC.sb.auth.signInWithOtp({ email: em, options: { shouldCreateUser: true } });
-    if (r.error) return fail(errText(r.error) || L.badEmail);
-    loginView('code', em);
+    if (r.error) return fail(errText(r.error) || (again ? L.netErr : L.badEmail));
+    S.sentAt = Date.now();
+    loginView('code', em, '', again ? L.resent : '');
   };
   $('lf').onsubmit = async ev => {
     ev.preventDefault(); $('lgo').disabled = true; $('lerr').textContent = '';
@@ -215,12 +243,23 @@ function loginView(step = 'email', email = '', msg = '') {
         const code = $('cd').value.replace(/\D/g, '');
         const r = await ACC.sb.auth.verifyOtp({ email, token: code, type: 'email' });
         if (r.error || !r.data || !r.data.session) return fail(errText(r.error) || L.badCode);
-        ACC.user = r.data.session.user;
-        await sync(); home();
+        ACC.user = r.data.session.user; ACC.note = '';
+        try { await sync(); } catch (e) { ACC.note = L.netErr; }
+        home();
       }
     } catch (e) { fail(errText(e) || L.netErr); }
   };
-  if ($('again')) $('again').onclick = () => send(email).catch(e => fail(errText(e) || L.netErr));
+  if ($('again')) {
+    const btn = $('again');
+    btn.onclick = () => { btn.disabled = true; send(email, true).catch(e => fail(errText(e) || L.netErr)); };
+    const tick = () => {
+      if (S.view !== 'login' || !document.body.contains(btn)) return;
+      const left = Math.ceil((60000 - (Date.now() - (S.sentAt || 0))) / 1000);
+      btn.disabled = left > 0; btn.textContent = left > 0 ? `${L.resend} ${L.wait(left)}` : L.resend;
+      if (left > 0) setTimeout(tick, 1000);
+    };
+    tick();
+  }
   if ($('other')) $('other').onclick = () => loginView('email', email);
   const f = $('em') || $('cd'); if (f) f.focus();
 }
@@ -228,7 +267,7 @@ function privacyHref() { return CFG.privacyUrl + (P.lang === 'en' ? '#en' : '');
 function accountFoot() {
   const L = t();
   if (!ACC.on) return `<p>${L.foot2}</p>`;
-  if (!ACC.user) return `<p>${L.foot2}</p>`;
+  if (!ACC.user) return `<p>${L.foot2acc}</p>`;
   return `<p>${esc(L.signedAs(ACC.user.email || ''))} · ${ACC.note ? esc(ACC.note) : L.synced}</p>
     <p class="acc-links"><button type="button" class="link" id="out">${L.logout}</button><button type="button" class="link" id="delp">${L.delProg}</button></p>
     <p>${esc(L.delAcc(CFG.contactEmail || ''))}</p>`;
@@ -236,10 +275,24 @@ function accountFoot() {
 function wireAccount() {
   const L = t();
   if ($('acc')) $('acc').onclick = () => loginView();
-  if ($('out')) $('out').onclick = async () => { try { await ACC.sb.auth.signOut(); } catch (e) {} ACC.user = null; home(); };
+  if ($('out')) $('out').onclick = () => ask(L.logoutQ, L.logout, async () => {
+    try { await sync(); } catch (e) { /* keep what is not saved yet: it stays tied to this account */ }
+    const allSaved = Object.values(P.cards).every(c => c.s);
+    try { await ACC.sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+    ACC.user = null; ACC.note = '';
+    if (allSaved) { P.cards = {}; P.uid = null; save(P); }
+    home();
+  });
   if ($('delp')) $('delp').onclick = () => ask(L.delProgQ, L.del, async () => {
-    const r = await ACC.sb.from('progress').delete().eq('user_id', ACC.user.id);
-    ACC.note = r.error ? L.netErr : L.delDone; home();
+    let ok = false;
+    try {
+      const uid = ACC.user.id;
+      const r = await ACC.sb.from('progress').delete().eq('user_id', uid).select('card_id');
+      if (!r.error) { const left = await ACC.sb.from('progress').select('card_id').eq('user_id', uid); ok = !left.error && (left.data || []).length === 0; }
+    } catch (e) { ok = false; }
+    if (ok) { P.cards = {}; save(P); }
+    ACC.note = ok ? L.delDone : L.delFail;
+    home();
   });
 }
 
@@ -270,7 +323,7 @@ function home() {
         ${st.rev ? `<button type="button" class="btn secondary" id="rev">${L.reviewN(st.rev)}</button>` : ''}
       </div>
     </section>
-    ${ACC.on && !ACC.user ? `<button type="button" class="row acc" id="acc" style="margin-top:18px"><span class="num">@</span>
+    ${ACC.on && ACC.sb && !ACC.user ? `<button type="button" class="row acc" id="acc" style="margin-top:18px"><span class="num">@</span>
       <span class="txt"><span class="t">${L.accRow}</span><span class="s">${L.accRowSub}</span></span><span class="go" aria-hidden="true">›</span></button>` : ''}
     <button type="button" class="row" id="intro" style="margin-top:18px"><span class="num">i</span>
       <span class="txt"><span class="t">${L.introRow}</span><span class="s">${L.introSub}</span></span><span class="go" aria-hidden="true">›</span></button>
@@ -280,18 +333,18 @@ function home() {
     ${mods}
     ${(SU().soon || []).length ? `<h2 class="section-title">${L.soon}</h2>
     ${SU().soon.map((v, i) => `<div class="row locked"><span class="num">${i + 2}</span><span class="txt"><span class="t">${esc(v[P.lang])}</span><span class="s">${L.locked}</span></span></div>`).join('')}` : ''}
-    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}<button type="button" class="link" id="reset">${L.reset}</button></div>
+    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}${ACC.user ? '' : `<button type="button" class="link" id="reset">${L.reset}</button>`}</div>
   </main>`;
   $('go').onclick = () => {
     const first = d.cards.find(c => !rating(c.id));
     if (first) startModule(first.module, first.id);
     else if (st.rev) startReview(); else startModule(1);
   };
-  if ($('rev')) $('rev').onclick = startReview;
+  if ($('rev')) $('rev').onclick = () => startReview();
   $('intro').onclick = () => startSession('intro', d.intro, null);
   $('leg').onclick = sheet;
   app.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => startModule(+b.dataset.mod));
-  $('reset').onclick = () => ask(L.resetQ, L.yes, () => { P.cards = {}; save(P); home(); });
+  if ($('reset')) $('reset').onclick = () => ask(L.resetQ, L.yes, () => { P.cards = {}; save(P); home(); });
   if ($('subj')) $('subj').onclick = subjectsView;
   wireAccount();
   wireLang();
@@ -332,7 +385,7 @@ async function setLang(l) {
     const d = D(), all = [...d.intro, ...d.cards];
     S.ses.list = S.ses.list.map(c => all.find(x => x.id === c.id));
     if (S.view === 'sum') summary(); else if (S.view === 'legend') legendStep(); else card();
-  } else if (S.view === 'login') loginView(); else home();
+  } else if (S.view === 'login') loginView(S.login ? S.login.step : 'email', S.login ? S.login.email : ''); else home();
 }
 
 /* ---------- sessions ---------- */
@@ -544,15 +597,18 @@ document.addEventListener('keydown', e => {
 });
 
 /* test hook used by the automatic checks */
-window.__p1 = { legend: lang => { const keep = P.lang; P.lang = lang; const h = legendHTML('h2'); P.lang = keep; return h; }, face: (id, side, lang) => { const d = S.data[dkey(lang)]; return face([...d.intro, ...d.cards].find(c => c.id === id), side); }, getData, subjects: () => S.subjects };
+window.__p1 = { legend: lang => { const keep = P.lang; P.lang = lang; const h = legendHTML('h2'); P.lang = keep; return h; }, face: (id, side, lang) => { const d = S.data[dkey(lang)]; return face([...d.intro, ...d.cards].find(c => c.id === id), side); }, getData, subjects: () => S.subjects, resendNow: () => { S.sentAt = 0; } };
 
 (async () => {
   document.documentElement.lang = P.lang;
   try {
     await loadSubjects();
-    if (!P.subj) { await accInit(); subjectsView(); return; }
-    await getData(P.lang); await accInit(); home();
-  }
-  catch (e) { app.innerHTML = `<p class="loading">${t().fail}</p>`; }
+    if (!P.subj) subjectsView(); else { await getData(P.lang); home(); }
+  } catch (e) { app.innerHTML = `<p class="loading">${t().fail}</p>`; return; }
+  accInit().then(() => {
+    const y = window.scrollY;
+    if (S.view === 'home') home(); else if (S.view === 'subjects') subjectsView(); else return;
+    window.scrollTo(0, y);
+  });
 })();
 }
