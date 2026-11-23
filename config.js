@@ -5,6 +5,6 @@
 window.P1_CONFIG = {
   supabaseUrl: 'https://tcocscxaxgsksixychtn.supabase.co',
   supabaseKey: 'sb_publishable_9zHnDQbWp7xexF56iIl_vA_B2Myg6KZ',
-  privacyUrl: '',
+  privacyUrl: 'privacy.html',
   contactEmail: 'info@smartgrowthd.it'
 };

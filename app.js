@@ -12,7 +12,7 @@ const T = {
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
     v2: 'Volume 2 · Biologia del parodonto', v3: 'Volume 3 · Terapia non chirurgica',
-    foot1: 'Anteprima privata · versione 0.3 · solo Volume 1',
+    foot1: 'Anteprima privata · versione 0.3.2 · solo Volume 1',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
     home: '← Volume 1', front: 'Fronte · domanda', back: 'Retro · risposta', recall: 'Prova a ricordare',
@@ -44,7 +44,7 @@ const T = {
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
     v2: 'Volume 2 · Biology of the periodontium', v3: 'Volume 3 · Non-surgical therapy',
-    foot1: 'Private preview · version 0.3 · Volume 1 only',
+    foot1: 'Private preview · version 0.3.2 · Volume 1 only',
     foot2: 'Your progress stays on this device, in this browser.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
     home: '← Volume 1', front: 'Front · question', back: 'Back · answer', recall: 'Try to recall',
@@ -156,7 +156,7 @@ function loginView(step = 'email', email = '', msg = '') {
       <button type="submit" class="btn primary wide" id="lgo">${step === 'email' ? L.sendCode : L.enter}</button>
     </form>
     ${step === 'code' ? `<div class="tools"><button type="button" class="link" id="again">${L.resend}</button><button type="button" class="link" id="other">${L.changeEmail}</button></div>` : ''}
-    ${CFG.privacyUrl ? `<p class="small"><a href="${esc(CFG.privacyUrl)}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}
+    ${CFG.privacyUrl ? `<p class="small"><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}
   </section></main>`;
   $('home').onclick = home; wireLang();
   const fail = m => { $('lerr').textContent = m; $('lgo').disabled = false; };
@@ -185,6 +185,7 @@ function loginView(step = 'email', email = '', msg = '') {
   if ($('other')) $('other').onclick = () => loginView('email', email);
   const f = $('em') || $('cd'); if (f) f.focus();
 }
+function privacyHref() { return CFG.privacyUrl + (P.lang === 'en' ? '#en' : ''); }
 function accountFoot() {
   const L = t();
   if (!ACC.on) return `<p>${L.foot2}</p>`;
@@ -239,7 +240,7 @@ function home() {
     ${mods}
     <h2 class="section-title">${L.soon}</h2>
     ${[L.v2, L.v3].map((v, i) => `<div class="row locked"><span class="num">${i + 2}</span><span class="txt"><span class="t">${v}</span><span class="s">${L.locked}</span></span></div>`).join('')}
-    <div class="foot"><p>${L.foot1}</p>${accountFoot()}<button type="button" class="link" id="reset">${L.reset}</button></div>
+    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}<button type="button" class="link" id="reset">${L.reset}</button></div>
   </main>`;
   $('go').onclick = () => {
     const first = d.cards.find(c => !rating(c.id));
