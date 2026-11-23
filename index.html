@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Periodontology ONE</title>
+<meta name="description" content="Periodontology ONE · flashcard di parodontologia basate sulle evidenze · Volume 1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1F5765">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preload" href="fonts/lato-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app" aria-live="polite"><p class="loading">Periodontology ONE…</p></div>
+<div id="viewer" class="viewer" hidden>
+  <div class="viewer-bar">
+    <button type="button" id="zoom" class="btn ghost light"></button>
+    <button type="button" id="close" class="btn ghost light"></button>
+  </div>
+  <div class="viewer-scroll"><img id="vimg" alt=""></div>
+</div>
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-bar"><button type="button" id="sheet-close" class="btn ghost light"></button></div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+<div id="dialog" class="dialog" hidden>
+  <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+    <p id="dtitle"></p>
+    <div class="dialog-actions">
+      <button type="button" id="dno" class="btn ghost"></button>
+      <button type="button" id="dyes" class="btn danger"></button>
+    </div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
