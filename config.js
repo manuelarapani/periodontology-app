@@ -6,5 +6,6 @@ window.P1_CONFIG = {
   supabaseUrl: 'https://tcocscxaxgsksixychtn.supabase.co',
   supabaseKey: 'sb_publishable_9zHnDQbWp7xexF56iIl_vA_B2Myg6KZ',
   privacyUrl: 'privacy.html',
+  platformName: '',  // shown on the subject chooser when more than one subject is published (name not decided yet)
   contactEmail: 'info@smartgrowthd.it'
 };

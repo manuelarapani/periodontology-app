@@ -11,8 +11,8 @@ const T = {
     legend: 'Legenda delle sigle', legendSub: 'Le sigle usate nelle card, spiegate', abbr: 'Sigle',
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
-    v2: 'Volume 2 · Biologia del parodonto', v3: 'Volume 3 · Terapia non chirurgica',
-    foot1: 'Anteprima privata · versione 0.3.2 · solo Volume 1',
+    chooseSubject: 'Scegli la materia', changeSubject: 'Cambia materia',
+    foot1: 'Anteprima privata · versione 0.4 · solo Volume 1',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
     home: '← Volume 1', front: 'Fronte · domanda', back: 'Retro · risposta', recall: 'Prova a ricordare',
@@ -43,8 +43,8 @@ const T = {
     legend: 'Abbreviations', legendSub: 'The abbreviations on the cards, explained', abbr: 'Abbreviations',
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
-    v2: 'Volume 2 · Biology of the periodontium', v3: 'Volume 3 · Non-surgical therapy',
-    foot1: 'Private preview · version 0.3.2 · Volume 1 only',
+    chooseSubject: 'Choose a subject', changeSubject: 'Change subject',
+    foot1: 'Private preview · version 0.4 · Volume 1 only',
     foot2: 'Your progress stays on this device, in this browser.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
     home: '← Volume 1', front: 'Front · question', back: 'Back · answer', recall: 'Try to recall',
@@ -76,22 +76,61 @@ const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; }
 const save = v => { mem = v; try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* private mode: keep in memory */ } };
 
 const P = Object.assign({ lang: (navigator.language || 'it').toLowerCase().startsWith('it') ? 'it' : 'en', cards: {} }, load());
-const S = { data: {}, view: 'home', ses: null };
+const S = { data: {}, view: 'home', ses: null, subjects: null };
 const $ = id => document.getElementById(id);
 const app = $('app');
 const t = () => T[P.lang];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const D = () => S.data[P.lang];
+const D = () => S.data[dkey(P.lang)];
 const cap = s => s.charAt(0) + s.slice(1).toLowerCase();
 const rating = id => (P.cards[id] || {}).r || 0;
 
+/* ---------- subjects (step 3: ready for more subjects; today only Periodontology) ---------- */
+const HEXC = /^#[0-9A-Fa-f]{6}$/;
+const SUBJ_DEFAULT = [{ id: 'per', name: { it: 'Parodontologia', en: 'Periodontology' },
+  brand: { it: { pre: 'Periodontology', post: 'ONE' }, en: { pre: 'Periodontology', post: 'ONE' } },
+  colors: null, volumes: [{ id: 'V1', data: 'data/v1_{lang}.json' }], soon: [] }];
+const SU = () => S.subjects.find(s => s.id === P.subj) || S.subjects[0];
+const VOL = () => SU().volumes[0];
+const dkey = lang => `${SU().id}/${VOL().id}/${lang}`;
+async function loadSubjects() {
+  try {
+    const r = await fetch('data/subjects.json');
+    if (r.ok) { const j = await r.json(); if (j && Array.isArray(j.subjects) && j.subjects.length) S.subjects = j.subjects; }
+  } catch (e) { /* fall back to Periodontology */ }
+  if (!S.subjects) S.subjects = SUBJ_DEFAULT;
+  if (!S.subjects.some(s => s.id === P.subj)) P.subj = S.subjects.length === 1 ? S.subjects[0].id : null;
+  paintSubjects();
+}
+function paintSubjects() {
+  const ok = c => c && ['accent', 'strong', 'tint', 'soft'].every(k => HEXC.test(c[k] || ''));
+  const v = c => `--petrol:${c.accent};--petrol-strong:${c.strong};--petrol-tint:${c.tint};--brand-soft:${c.soft};`;
+  const css = S.subjects.filter(s => s.colors && ok(s.colors.light) && ok(s.colors.dark) && /^[a-z]{2,8}$/.test(s.id)).map(s =>
+    `:root[data-subject="${s.id}"]{${v(s.colors.light)}}\n` +
+    `@media (prefers-color-scheme:dark){:root[data-subject="${s.id}"]:not([data-theme=light]){${v(s.colors.dark)}}}\n` +
+    `:root[data-subject="${s.id}"][data-theme=dark]{${v(s.colors.dark)}}`).join('\n');
+  let el = document.getElementById('subj-css');
+  if (!el) { el = document.createElement('style'); el.id = 'subj-css'; document.head.appendChild(el); }
+  el.textContent = css;
+  markSubject();
+}
+function markSubject() {
+  const root = document.documentElement, s = P.subj && S.subjects.find(x => x.id === P.subj);
+  if (s) root.dataset.subject = s.id; else delete root.dataset.subject;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m && s && s.colors && HEXC.test(s.colors.light.accent)) m.content = s.colors.light.accent;
+}
+const brandHTML = s => { const b = (s.brand && (s.brand[P.lang] || s.brand.it)) || { pre: '', post: '' };
+  return `${esc(b.pre)}${b.pre.endsWith('-') ? '' : ' '}<b>${esc(b.post)}</b>`; };
+
 async function getData(lang) {
-  if (!S.data[lang]) {
-    const r = await fetch(`data/v1_${lang}.json`);
+  const k = dkey(lang);
+  if (!S.data[k]) {
+    const r = await fetch(VOL().data.replace('{lang}', lang));
     if (!r.ok) throw new Error(r.status);
-    S.data[lang] = await r.json();
+    S.data[k] = await r.json();
   }
-  return S.data[lang];
+  return S.data[k];
 }
 
 function stats(list) {
@@ -218,6 +257,7 @@ function home() {
   app.innerHTML = `${bar()}
   <main>
     <section class="hero">
+      <p class="subj"><span class="sdot" aria-hidden="true"></span>${esc(SU().name[P.lang])}${S.subjects.length > 1 ? ` · <button type="button" class="link inline" id="subj">${L.changeSubject}</button>` : ''}</p>
       <p class="vol">${L.vol}</p>
       <h1>${esc(d.volume_title)}</h1>
       <div class="stats">
@@ -238,8 +278,8 @@ function home() {
       <span class="txt"><span class="t">${L.legend}</span><span class="s">${L.legendSub}</span></span><span class="go" aria-hidden="true">›</span></button>
     <h2 class="section-title">${L.modules}</h2>
     ${mods}
-    <h2 class="section-title">${L.soon}</h2>
-    ${[L.v2, L.v3].map((v, i) => `<div class="row locked"><span class="num">${i + 2}</span><span class="txt"><span class="t">${v}</span><span class="s">${L.locked}</span></span></div>`).join('')}
+    ${(SU().soon || []).length ? `<h2 class="section-title">${L.soon}</h2>
+    ${SU().soon.map((v, i) => `<div class="row locked"><span class="num">${i + 2}</span><span class="txt"><span class="t">${esc(v[P.lang])}</span><span class="s">${L.locked}</span></span></div>`).join('')}` : ''}
     <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}<button type="button" class="link" id="reset">${L.reset}</button></div>
   </main>`;
   $('go').onclick = () => {
@@ -252,6 +292,26 @@ function home() {
   $('leg').onclick = sheet;
   app.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => startModule(+b.dataset.mod));
   $('reset').onclick = () => ask(L.resetQ, L.yes, () => { P.cards = {}; save(P); home(); });
+  if ($('subj')) $('subj').onclick = subjectsView;
+  wireAccount();
+  wireLang();
+  window.scrollTo(0, 0);
+}
+
+function subjectsView() {
+  S.view = 'subjects'; S.ses = null; P.subj = null; save(P); markSubject();
+  const L = t();
+  app.innerHTML = `${bar(`<span class="brand">${esc(CFG.platformName || '')}</span>`)}
+  <main>
+    <h1 class="pick-title">${L.chooseSubject}</h1>
+    ${S.subjects.map(s => `<button type="button" class="row subj-row" data-subj="${esc(s.id)}"><span class="num sdot-big" style="background:${s.colors && HEXC.test(s.colors.light.accent) ? s.colors.light.accent : 'var(--petrol)'}" aria-hidden="true"></span>
+      <span class="txt"><span class="t">${esc(s.name[P.lang])}</span><span class="s">${brandHTML(s).replace(/<\/?b>/g, '')}</span></span><span class="go" aria-hidden="true">›</span></button>`).join('')}
+    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}</div>
+  </main>`;
+  app.querySelectorAll('[data-subj]').forEach(b => b.onclick = async () => {
+    P.subj = b.dataset.subj; save(P); markSubject();
+    try { await getData(P.lang); home(); } catch (e) { app.innerHTML = `<p class="loading">${t().fail}</p>`; }
+  });
   wireAccount();
   wireLang();
   window.scrollTo(0, 0);
@@ -259,12 +319,13 @@ function home() {
 
 function bar(inner) {
   const seg = `<div class="seg" role="group" aria-label="Lingua / Language">${['it', 'en'].map(l => `<button type="button" data-lang="${l}" aria-pressed="${P.lang === l}">${l.toUpperCase()}</button>`).join('')}</div>`;
-  return `<header class="bar">${inner || '<span class="brand">Periodontology <b>ONE</b></span>'}${seg}</header>`;
+  return `<header class="bar">${inner || `<span class="brand">${brandHTML(SU())}</span>`}${seg}</header>`;
 }
 function wireLang() { app.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => setLang(b.dataset.lang)); }
 
 async function setLang(l) {
   if (l === P.lang) return;
+  if (S.view === 'subjects') { P.lang = l; save(P); document.documentElement.lang = l; subjectsView(); return; }
   try { await getData(l); } catch (e) { return; }
   P.lang = l; save(P); document.documentElement.lang = l;
   if (S.ses) {
@@ -483,11 +544,15 @@ document.addEventListener('keydown', e => {
 });
 
 /* test hook used by the automatic checks */
-window.__p1 = { legend: lang => { const keep = P.lang; P.lang = lang; const h = legendHTML('h2'); P.lang = keep; return h; }, face: (id, side, lang) => { const d = S.data[lang]; return face([...d.intro, ...d.cards].find(c => c.id === id), side); }, getData };
+window.__p1 = { legend: lang => { const keep = P.lang; P.lang = lang; const h = legendHTML('h2'); P.lang = keep; return h; }, face: (id, side, lang) => { const d = S.data[dkey(lang)]; return face([...d.intro, ...d.cards].find(c => c.id === id), side); }, getData, subjects: () => S.subjects };
 
 (async () => {
   document.documentElement.lang = P.lang;
-  try { await getData(P.lang); await accInit(); home(); }
+  try {
+    await loadSubjects();
+    if (!P.subj) { await accInit(); subjectsView(); return; }
+    await getData(P.lang); await accInit(); home();
+  }
   catch (e) { app.innerHTML = `<p class="loading">${t().fail}</p>`; }
 })();
 }
