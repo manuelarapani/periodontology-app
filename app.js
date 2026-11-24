@@ -12,7 +12,7 @@ const T = {
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
     chooseSubject: 'Scegli la materia', changeSubject: 'Cambia materia',
-    foot1: 'Anteprima privata · versione 0.4.1 · solo Volume 1',
+    foot1: 'Anteprima privata · versione 0.4.2 · solo Volume 1',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
     foot2acc: 'Senza account i progressi restano solo in questo browser, e su iPhone e iPad Safari può cancellarli se per un po\' non apri l\'app. Accedi con la tua email per non perderli.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
@@ -37,7 +37,7 @@ const T = {
     logout: 'Esci', logoutQ: 'Vuoi uscire? I tuoi progressi restano salvati nel tuo account; da questo dispositivo vengono tolti.',
     delProg: 'Cancella tutti i miei progressi', delProgQ: 'Vuoi cancellare tutti i tuoi progressi, dal server e da questo dispositivo? Non si può annullare.',
     delDone: 'Progressi cancellati, dal server e da questo dispositivo.', delFail: 'Cancellazione non riuscita. Riprova tra poco.',
-    resent: 'Nuovo codice inviato: usa quello dell\'ultima email.', wait: n => `(${n} s)`, delAcc: e => `Per cancellare anche l'account scrivi a ${e}.`, del: 'Cancella'
+    resent: 'Nuovo codice inviato: usa quello dell\'ultima email.', inviteOnly: 'Per ora l\'accesso con account è riservato agli invitati. Puoi comunque studiare senza account: i progressi restano in questo browser.', wait: n => `(${n} s)`, delAcc: e => `Per cancellare anche l'account scrivi a ${e}.`, del: 'Cancella'
   },
   en: {
     vol: 'Volume 1', rated: 'cards rated', sure: 'confident (3–4)', rev: 'to review (1–2)',
@@ -47,7 +47,7 @@ const T = {
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
     chooseSubject: 'Choose a subject', changeSubject: 'Change subject',
-    foot1: 'Private preview · version 0.4.1 · Volume 1 only',
+    foot1: 'Private preview · version 0.4.2 · Volume 1 only',
     foot2: 'Your progress stays on this device, in this browser.',
     foot2acc: 'Without an account your progress stays only in this browser, and on iPhone and iPad Safari may erase it if you don\'t open the app for a while. Sign in with your email to keep it.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
@@ -72,7 +72,7 @@ const T = {
     logout: 'Sign out', logoutQ: 'Sign out? Your progress stays saved in your account; it is removed from this device.',
     delProg: 'Delete all my progress', delProgQ: 'Delete all your progress, from the server and from this device? This cannot be undone.',
     delDone: 'Progress deleted, from the server and from this device.', delFail: 'Deletion failed. Please try again shortly.',
-    resent: 'New code sent: use the one in the latest email.', wait: n => `(${n} s)`, delAcc: e => `To delete your account too, write to ${e}.`, del: 'Delete'
+    resent: 'New code sent: use the one in the latest email.', inviteOnly: 'For now, accounts are by invitation only. You can still study without an account: your progress stays in this browser.', wait: n => `(${n} s)`, delAcc: e => `To delete your account too, write to ${e}.`, del: 'Delete'
   }
 };
 
@@ -202,6 +202,7 @@ function pushOne(id) {
 function errText(e) {
   if (!e) return null;
   const L = t(), msg = String(e.message || '');
+  if (e.code === 'otp_disabled' || e.code === 'signup_disabled' || /signups? not allowed|signups? (are |is )?disabled/i.test(msg)) return L.inviteOnly;
   if (e.status === 429 || /rate|too many/i.test(msg)) return L.tooMany;
   if (e.status === 0 || e.name === 'AuthRetryableFetchError' || /fetch|network|load failed/i.test(msg)) return L.netErr;
   return null;
