@@ -12,7 +12,7 @@ const T = {
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
     chooseSubject: 'Scegli la materia', changeSubject: 'Cambia materia',
-    foot1: 'Anteprima privata · versione 0.4.2 · solo Volume 1',
+    foot1: 'Anteprima privata · versione 0.4.3 · solo Volume 1',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
     foot2acc: 'Senza account i progressi restano solo in questo browser, e su iPhone e iPad Safari può cancellarli se per un po\' non apri l\'app. Accedi con la tua email per non perderli.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
@@ -33,7 +33,7 @@ const T = {
     code: 'Codice ricevuto', enter: 'Entra', resend: 'Rimanda il codice', changeEmail: 'Cambia email',
     badEmail: 'Controlla l\'indirizzo email.', badCode: 'Il codice non è valido o è scaduto.', tooMany: 'Troppi tentativi: aspetta un minuto e riprova.',
     netErr: 'Non riesco a collegarmi. Riprova tra poco.', privacy: 'Informativa privacy',
-    signedAs: e => `Accesso con ${e}`, synced: 'I progressi sono salvati nel tuo account.', syncing: 'Salvataggio in corso…',
+    signedAs: e => `Accesso con ${e}`, meLabel: e => `Accesso con ${e}: vai all'account`, synced: 'I progressi sono salvati nel tuo account.', syncing: 'Salvataggio in corso…',
     logout: 'Esci', logoutQ: 'Vuoi uscire? I tuoi progressi restano salvati nel tuo account; da questo dispositivo vengono tolti.',
     delProg: 'Cancella tutti i miei progressi', delProgQ: 'Vuoi cancellare tutti i tuoi progressi, dal server e da questo dispositivo? Non si può annullare.',
     delDone: 'Progressi cancellati, dal server e da questo dispositivo.', delFail: 'Cancellazione non riuscita. Riprova tra poco.',
@@ -47,7 +47,7 @@ const T = {
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
     chooseSubject: 'Choose a subject', changeSubject: 'Change subject',
-    foot1: 'Private preview · version 0.4.2 · Volume 1 only',
+    foot1: 'Private preview · version 0.4.3 · Volume 1 only',
     foot2: 'Your progress stays on this device, in this browser.',
     foot2acc: 'Without an account your progress stays only in this browser, and on iPhone and iPad Safari may erase it if you don\'t open the app for a while. Sign in with your email to keep it.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
@@ -68,7 +68,7 @@ const T = {
     code: 'Code received', enter: 'Sign in', resend: 'Send the code again', changeEmail: 'Change email',
     badEmail: 'Please check the email address.', badCode: 'The code is not valid or has expired.', tooMany: 'Too many attempts: wait a minute and try again.',
     netErr: 'Cannot connect. Please try again shortly.', privacy: 'Privacy notice',
-    signedAs: e => `Signed in as ${e}`, synced: 'Your progress is saved in your account.', syncing: 'Saving…',
+    signedAs: e => `Signed in as ${e}`, meLabel: e => `Signed in as ${e}: go to your account`, synced: 'Your progress is saved in your account.', syncing: 'Saving…',
     logout: 'Sign out', logoutQ: 'Sign out? Your progress stays saved in your account; it is removed from this device.',
     delProg: 'Delete all my progress', delProgQ: 'Delete all your progress, from the server and from this device? This cannot be undone.',
     delDone: 'Progress deleted, from the server and from this device.', delFail: 'Deletion failed. Please try again shortly.',
@@ -269,7 +269,7 @@ function accountFoot() {
   const L = t();
   if (!ACC.on) return `<p>${L.foot2}</p>`;
   if (!ACC.user) return `<p>${L.foot2acc}</p>`;
-  return `<p>${esc(L.signedAs(ACC.user.email || ''))} · ${ACC.note ? esc(ACC.note) : L.synced}</p>
+  return `<p id="accnow">${esc(L.signedAs(ACC.user.email || ''))} · ${ACC.note ? esc(ACC.note) : L.synced}</p>
     <p class="acc-links"><button type="button" class="link" id="out">${L.logout}</button><button type="button" class="link" id="delp">${L.delProg}</button></p>
     <p>${esc(L.delAcc(CFG.contactEmail || ''))}</p>`;
 }
@@ -373,9 +373,26 @@ function subjectsView() {
 
 function bar(inner) {
   const seg = `<div class="seg" role="group" aria-label="Lingua / Language">${['it', 'en'].map(l => `<button type="button" data-lang="${l}" aria-pressed="${P.lang === l}">${l.toUpperCase()}</button>`).join('')}</div>`;
-  return `<header class="bar">${inner || `<span class="brand">${brandHTML(SU())}</span>`}${seg}</header>`;
+  return `<header class="bar">${inner || `<span class="brand">${brandHTML(SU())}</span>`}${meChip()}${seg}</header>`;
 }
-function wireLang() { app.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => setLang(b.dataset.lang)); }
+/* signed-in sign at the top (suggested in the 25 Nov 2026 test): initial + green dot; the name part shows on wide screens */
+function meChip() {
+  if (!ACC.user) return '';
+  const L = t(), em = ACC.user.email || '', who = em.split('@')[0], ini = (who.match(/[a-z0-9]/i) || ['@'])[0].toUpperCase();
+  return `<button type="button" class="me" id="me" aria-label="${esc(L.meLabel(em))}" title="${esc(L.signedAs(em))}"><span class="av" aria-hidden="true">${esc(ini)}<i></i></span><span class="who" aria-hidden="true">${esc(who)}</span></button>`;
+}
+function goAccount() {
+  if (S.view !== 'home' && S.view !== 'subjects') home();
+  const el = $('accnow');
+  if (!el) return;
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1800);
+}
+function wireLang() {
+  app.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => setLang(b.dataset.lang));
+  if ($('me')) $('me').onclick = goAccount;
+}
 
 async function setLang(l) {
   if (l === P.lang) return;

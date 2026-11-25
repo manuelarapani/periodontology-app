@@ -56,6 +56,14 @@ button{font:inherit;color:inherit}
 .seg{display:flex;border:1px solid rgba(255,255,255,.45);border-radius:999px;overflow:hidden}
 .seg button{border:0;background:none;color:#fff;padding:0 14px;min-height:36px;font-size:14px;font-weight:700;cursor:pointer}
 .seg button[aria-pressed=true]{background:#fff;color:var(--petrol-strong)}
+.me{flex:none;display:flex;align-items:center;gap:8px;border:0;background:none;color:#fff;padding:0;min-height:44px;cursor:pointer}
+.me .av{position:relative;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#fff;color:var(--petrol-strong);font-size:15px;font-weight:700;line-height:1}
+.me .av i{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:#3FBF6F;border:2px solid var(--petrol-strong)}
+.me .who{display:none;max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
+@media (min-width:600px){.me .who{display:block}}
+.me:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:999px}
+.foot p.flash{animation:flash 1.8s ease}
+@keyframes flash{0%,55%{background:var(--petrol-tint);color:var(--ink)}100%{background:transparent}}
 .back{border:0;background:none;color:#fff;min-height:44px;padding:0 6px 0 0;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
 .progress{height:4px;background:rgba(0,0,0,.08)}
 .progress i{display:block;height:100%;background:var(--sage);transition:width .3s}
