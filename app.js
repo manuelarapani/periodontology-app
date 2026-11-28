@@ -12,7 +12,7 @@ const T = {
     modules: 'Moduli', module: 'Modulo', ofTen: (a, b) => `${a} di ${b} valutate`,
     soon: 'Prossimamente', locked: 'In arrivo',
     chooseSubject: 'Scegli la materia', changeSubject: 'Cambia materia',
-    foot1: 'Anteprima privata · versione 0.4.3 · solo Volume 1',
+    foot1: 'Anteprima privata · versione 0.4.4 · solo Volume 1', by: 'Un progetto di',
     foot2: 'I progressi restano su questo dispositivo, in questo browser.',
     foot2acc: 'Senza account i progressi restano solo in questo browser, e su iPhone e iPad Safari può cancellarli se per un po\' non apri l\'app. Accedi con la tua email per non perderli.',
     reset: 'Azzera i progressi', resetQ: 'Vuoi azzerare tutti i progressi su questo dispositivo?', yes: 'Azzera', no: 'Annulla',
@@ -47,7 +47,7 @@ const T = {
     modules: 'Modules', module: 'Module', ofTen: (a, b) => `${a} of ${b} rated`,
     soon: 'Coming next', locked: 'Coming soon',
     chooseSubject: 'Choose a subject', changeSubject: 'Change subject',
-    foot1: 'Private preview · version 0.4.3 · Volume 1 only',
+    foot1: 'Private preview · version 0.4.4 · Volume 1 only', by: 'A project by',
     foot2: 'Your progress stays on this device, in this browser.',
     foot2acc: 'Without an account your progress stays only in this browser, and on iPhone and iPad Safari may erase it if you don\'t open the app for a while. Sign in with your email to keep it.',
     reset: 'Reset progress', resetQ: 'Reset all progress on this device?', yes: 'Reset', no: 'Cancel',
@@ -334,7 +334,7 @@ function home() {
     ${mods}
     ${(SU().soon || []).length ? `<h2 class="section-title">${L.soon}</h2>
     ${SU().soon.map((v, i) => `<div class="row locked"><span class="num">${i + 2}</span><span class="txt"><span class="t">${esc(v[P.lang])}</span><span class="s">${L.locked}</span></span></div>`).join('')}` : ''}
-    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}${ACC.user ? '' : `<button type="button" class="link" id="reset">${L.reset}</button>`}</div>
+    <div class="foot"><p>${L.foot1}</p>${accountFoot()}${CFG.privacyUrl ? `<p><a href="${esc(privacyHref())}" target="_blank" rel="noopener">${L.privacy}</a></p>` : ''}${ACC.user ? '' : `<button type="button" class="link" id="reset">${L.reset}</button>`}<div class="by"><span>${L.by}</span><span class="sg" role="img" aria-label="Smart Growth.D"></span></div></div>
   </main>`;
   $('go').onclick = () => {
     const first = d.cards.find(c => !rating(c.id));
